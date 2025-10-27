@@ -73,21 +73,23 @@ class BusinessCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Consumer<UserProvider>(
                             builder: (context, userProvider, child) {
-                              final isFavorite = userProvider.isFavorite(
+                              final isFavorite = userProvider.isFavoriteLocal(
                                 business.id,
                               );
                               return InkWell(
-                                onTap: () {
-                                  userProvider.toggleFavorite(business.id);
+                                onTap: () async {
+                                  await userProvider.toggleFavorite(
+                                    business.id,
+                                  );
                                 },
                                 borderRadius: BorderRadius.circular(20),
                                 child: Padding(
                                   padding: const EdgeInsets.all(4),
                                   child: Icon(
-                                    isFavorite == true
+                                    isFavorite
                                         ? Icons.favorite
                                         : Icons.favorite_border,
-                                    color: isFavorite == true
+                                    color: isFavorite
                                         ? Colors.red
                                         : AppTheme.grey400,
                                     size: 22,

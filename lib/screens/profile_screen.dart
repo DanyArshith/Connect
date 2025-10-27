@@ -7,6 +7,7 @@ import '../widgets/custom_button.dart' as widgets;
 import 'login_screen.dart';
 import 'add_business_screen.dart';
 import 'business_details_screen.dart';
+import 'edit_business_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -454,6 +455,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onChanged: (value) async {
                 final newRole = value ? 'business_owner' : 'customer';
                 await userProvider.updateUserRole(newRole);
+
+                // Reload businesses after role switch
+                if (value && userProvider.currentUser != null) {
+                  final businessProvider = Provider.of<BusinessProvider>(
+                    context,
+                    listen: false,
+                  );
+                  businessProvider.loadUserBusinesses(
+                    userProvider.currentUser!.id,
+                  );
+                }
               },
               activeColor: AppTheme.primaryColor,
             ),
@@ -656,81 +668,175 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBusinessItem(Business business) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => BusinessDetailsScreen(business: business),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppTheme.grey100,
-                borderRadius: BorderRadius.circular(8),
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => BusinessDetailsScreen(business: business),
               ),
-              child: business.imageUrl != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        business.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.business_outlined,
-                            color: AppTheme.grey600,
-                          );
-                        },
-                      ),
-                    )
-                  : Icon(Icons.business_outlined, color: AppTheme.grey600),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    business.name,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.grey900,
-                    ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppTheme.grey100,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    business.category,
-                    style: TextStyle(fontSize: 13, color: AppTheme.grey600),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
+                  child: business.imageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            business.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.business_outlined,
+                                color: AppTheme.grey600,
+                              );
+                            },
+                          ),
+                        )
+                      : Icon(Icons.business_outlined, color: AppTheme.grey600),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.star, size: 14, color: Colors.amber),
-                      const SizedBox(width: 2),
                       Text(
-                        business.rating.toStringAsFixed(1),
-                        style: TextStyle(fontSize: 12, color: AppTheme.grey600),
+                        business.name,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.grey900,
+                        ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 2),
                       Text(
-                        '(${business.reviewCount} reviews)',
-                        style: TextStyle(fontSize: 12, color: AppTheme.grey600),
+                        business.category,
+                        style: TextStyle(fontSize: 13, color: AppTheme.grey600),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.star, size: 14, color: Colors.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            business.rating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.grey600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '(${business.reviewCount} reviews)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.grey600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, color: AppTheme.grey600),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EditBusinessScreen(business: business),
+                        ),
+                      );
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmation(business);
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.edit,
+                            size: 18,
+                            color: AppTheme.primaryColor,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete,
+                            size: 18,
+                            color: AppTheme.errorColor,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Delete'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            Icon(Icons.chevron_right, color: AppTheme.grey400, size: 20),
-          ],
+          ),
         ),
+      ],
+    );
+  }
+
+  void _showDeleteConfirmation(Business business) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Business'),
+        content: Text(
+          'Are you sure you want to delete "${business.name}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: AppTheme.grey600)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final businessProvider = Provider.of<BusinessProvider>(
+                context,
+                listen: false,
+              );
+              final success = await businessProvider.deleteBusiness(
+                business.id,
+              );
+              if (success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Business deleted successfully'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
+                );
+              }
+            },
+            child: Text('Delete', style: TextStyle(color: AppTheme.errorColor)),
+          ),
+        ],
       ),
     );
   }
@@ -745,11 +851,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           if (!userProvider.isBusinessOwner) ...[
             _buildMenuItem(
-              icon: Icons.business_outlined,
+              icon: Icons.store_outlined,
+              title: 'Start Your Business',
+              subtitle: 'List your business on LocalConnect',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AddBusinessScreen(),
+                  ),
+                );
+              },
+            ),
+            Divider(height: 1, color: AppTheme.grey200),
+            _buildMenuItem(
+              icon: Icons.business_center_outlined,
               title: 'Become Business Owner',
-              subtitle: 'Start listing your business',
+              subtitle: 'Switch to business owner mode',
               onTap: () async {
-                await userProvider.updateUserRole('business_owner');
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    title: const Text('Switch to Business Owner'),
+                    content: const Text(
+                      'Do you want to switch to Business Owner mode? You can switch back anytime.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(color: AppTheme.grey600),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: Text(
+                          'Switch',
+                          style: TextStyle(color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  await userProvider.updateUserRole('business_owner');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Switched to Business Owner mode'),
+                        backgroundColor: AppTheme.successColor,
+                      ),
+                    );
+                  }
+                }
               },
             ),
             Divider(height: 1, color: AppTheme.grey200),
@@ -759,7 +916,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Notifications',
             subtitle: 'Manage your alerts',
             onTap: () {
-              // TODO: Navigate to notifications
+              _showSettingsDialog();
             },
           ),
           Divider(height: 1, color: AppTheme.grey200),
@@ -768,7 +925,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Settings',
             subtitle: 'App preferences',
             onTap: () {
-              // TODO: Navigate to settings
+              _showSettingsDialog();
             },
           ),
           Divider(height: 1, color: AppTheme.grey200),
@@ -777,10 +934,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Help & Support',
             subtitle: 'Get assistance',
             onTap: () {
-              // TODO: Navigate to help
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: const Text('Help & Support'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'If you need help, please contact us:',
+                        style: TextStyle(fontSize: 14, color: AppTheme.grey700),
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Email: support@localconnect.com'),
+                      const SizedBox(height: 4),
+                      Text('Phone: 1800-LOCAL-APP'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Close',
+                        style: TextStyle(color: AppTheme.primaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'App Settings',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            _buildSettingsOption(
+              icon: Icons.notifications_active_outlined,
+              title: 'Push Notifications',
+              subtitle: 'Get alerts for new reviews',
+              onTap: () {
+                // TODO: Implement notification settings
+                Navigator.pop(context);
+              },
+            ),
+            const SizedBox(height: 8),
+            _buildSettingsOption(
+              icon: Icons.dark_mode_outlined,
+              title: 'Dark Mode',
+              subtitle: 'Coming soon',
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: TextStyle(color: AppTheme.primaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 20, color: AppTheme.primaryColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: AppTheme.grey600),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppTheme.grey400, size: 20),
+          ],
+        ),
       ),
     );
   }

@@ -152,6 +152,19 @@ class FirebaseService {
     }
   }
 
+  // Business methods - Get stream for real-time updates
+  static Stream<List<Business>> businessesStream() {
+    return _firestore
+        .collection('businesses')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Business.fromMap(doc.data(), doc.id))
+              .toList();
+        });
+  }
+
   // Business methods
   static Future<List<Business>> getBusinesses({
     String? category,
@@ -322,6 +335,37 @@ class FirebaseService {
     }
   }
 
+  // Get user favorites stream for real-time updates
+  static Stream<List<Business>> userFavoritesStream(String userId) {
+    return _firestore
+        .collection('favorites')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .asyncMap((snapshot) async {
+          if (snapshot.docs.isEmpty) return <Business>[];
+
+          final businessIds = <String>[];
+          for (final doc in snapshot.docs) {
+            final businessId = doc.data()['businessId'];
+            if (businessId is String) {
+              businessIds.add(businessId);
+            }
+          }
+
+          if (businessIds.isEmpty) return <Business>[];
+
+          final businessesSnapshot = await _firestore
+              .collection('businesses')
+              .where(FieldPath.documentId, whereIn: businessIds)
+              .where('isActive', isEqualTo: true)
+              .get();
+
+          return businessesSnapshot.docs
+              .map((doc) => Business.fromMap(doc.data(), doc.id))
+              .toList();
+        });
+  }
+
   static Future<List<Business>> getUserFavorites(String userId) async {
     try {
       // Get favorite business IDs from the separate favorites collection
@@ -466,6 +510,21 @@ class FirebaseService {
     } catch (e) {
       throw Exception('Failed to add feedback: $e');
     }
+  }
+
+  // Get feedbacks stream for real-time updates
+  static Stream<List<Map<String, dynamic>>> businessFeedbacksStream(
+    String businessId,
+  ) {
+    return _firestore.collection('businesses').doc(businessId).snapshots().map((
+      doc,
+    ) {
+      if (doc.exists) {
+        final data = doc.data()!;
+        return List<Map<String, dynamic>>.from(data['feedbacks'] ?? []);
+      }
+      return <Map<String, dynamic>>[];
+    });
   }
 
   static Future<List<Map<String, dynamic>>> getBusinessFeedbacks(

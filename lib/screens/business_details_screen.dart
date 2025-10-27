@@ -128,37 +128,43 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                   }
 
                   // Show favorite button for other users
-                  return Container(
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Consumer<UserProvider>(
-                      builder: (context, userProvider, child) {
-                        final isFavorite = userProvider.isFavoriteLocal(
-                          widget.business.id,
-                        );
-                        return IconButton(
-                          onPressed: () async {
-                            await userProvider.toggleFavorite(
-                              widget.business.id,
-                            );
-                          },
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : AppTheme.grey900,
+                  if (authProvider.isAuthenticated &&
+                      authProvider.user != null &&
+                      widget.business.ownerId != authProvider.user!.uid)
+                    return Container(
+                      margin: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
                           ),
-                        );
-                      },
-                    ),
-                  );
+                        ],
+                      ),
+                      child: Consumer<UserProvider>(
+                        builder: (context, userProvider, child) {
+                          final isFavorite = userProvider.isFavoriteLocal(
+                            widget.business.id,
+                          );
+                          return IconButton(
+                            onPressed: () async {
+                              await userProvider.toggleFavorite(
+                                widget.business.id,
+                              );
+                            },
+                            icon: Icon(
+                              isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: isFavorite ? Colors.red : AppTheme.grey900,
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  return const SizedBox.shrink();
                 },
               ),
             ],

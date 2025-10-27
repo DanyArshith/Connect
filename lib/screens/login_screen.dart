@@ -19,7 +19,6 @@ class _LoginScreenState extends State<LoginScreen>
   final _signUpFormKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
 
   late AnimationController _animationController;
@@ -27,7 +26,6 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<Offset> _slideAnimation;
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   String _selectedRole = 'customer';
 
   @override
@@ -58,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen>
     _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _nameController.dispose();
     super.dispose();
   }
@@ -112,11 +109,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _signUp() async {
     if (!_signUpFormKey.currentState!.validate()) return;
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      _showSnackBar('Passwords do not match', true);
-      return;
-    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -188,8 +180,8 @@ class _LoginScreenState extends State<LoginScreen>
         child: Center(
           child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
-              horizontal: isWide ? 48 : 24,
-              vertical: 24,
+              horizontal: isWide ? 48 : 20,
+              vertical: isWide ? 32 : 20,
             ),
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -202,12 +194,10 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo
-                      _buildLogo(isWide),
-
-                      SizedBox(height: isWide ? 48 : 40),
-
-                      // Card Container
+                      if (_tabController.index == 0) ...[
+                        _buildLogo(isWide),
+                        SizedBox(height: isWide ? 40 : 32),
+                      ],
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -221,20 +211,15 @@ class _LoginScreenState extends State<LoginScreen>
                           ],
                         ),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Tab Bar
                             _buildTabBar(),
-
-                            // Tab Content
-                            SizedBox(
-                              height: _tabController.index == 0 ? 360 : 480,
-                              child: TabBarView(
-                                controller: _tabController,
-                                children: [
-                                  _buildSignInForm(),
-                                  _buildSignUpForm(),
-                                ],
-                              ),
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              child: _tabController.index == 0
+                                  ? _buildSignInForm()
+                                  : _buildSignUpForm(),
                             ),
                           ],
                         ),
@@ -254,8 +239,8 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       children: [
         Container(
-          width: isWide ? 72 : 64,
-          height: isWide ? 72 : 64,
+          width: isWide ? 64 : 56,
+          height: isWide ? 64 : 56,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -276,25 +261,25 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           child: Icon(
             Icons.business_center_rounded,
-            size: isWide ? 36 : 32,
+            size: isWide ? 32 : 28,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Text(
           'LocalConnect',
           style: TextStyle(
-            fontSize: isWide ? 32 : 28,
+            fontSize: isWide ? 28 : 24,
             fontWeight: FontWeight.bold,
             color: AppTheme.grey900,
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           'Connect with Local Businesses',
           style: TextStyle(
-            fontSize: isWide ? 16 : 14,
+            fontSize: isWide ? 15 : 13,
             color: AppTheme.grey600,
             fontWeight: FontWeight.w400,
           ),
@@ -437,6 +422,7 @@ class _LoginScreenState extends State<LoginScreen>
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             _buildTextField(
               controller: _nameController,
@@ -449,7 +435,7 @@ class _LoginScreenState extends State<LoginScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _buildTextField(
               controller: _emailController,
               label: 'Email',
@@ -465,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _buildTextField(
               controller: _passwordController,
               label: 'Password',
@@ -492,41 +478,13 @@ class _LoginScreenState extends State<LoginScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _confirmPasswordController,
-              label: 'Confirm Password',
-              icon: Icons.lock_outline,
-              obscureText: _obscureConfirmPassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  size: 20,
-                  color: AppTheme.grey600,
-                ),
-                onPressed: () => setState(
-                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please confirm your password';
-                }
-                if (value != _passwordController.text) {
-                  return 'Passwords do not match';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _buildRoleSelection(),
             const SizedBox(height: 24),
             Consumer<AuthProvider>(
               builder: (context, authProvider, child) {
                 return widgets.CustomButton(
-                  text: 'Sign Up',
+                  text: 'Create Account',
                   onPressed: authProvider.isLoading ? null : _signUp,
                   isLoading: authProvider.isLoading,
                   icon: Icons.arrow_forward,
@@ -591,89 +549,73 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildRoleSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'I want to join as:',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.grey700,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.grey50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.grey300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildRoleOption(
+              title: 'Customer',
+              icon: Icons.person_outline,
+              value: 'customer',
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildRoleOption(
-                title: 'Customer',
-                subtitle: 'Browse & favorite businesses',
-                icon: Icons.person_outline,
-                value: 'customer',
-              ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildRoleOption(
+              title: 'Business Owner',
+              icon: Icons.business_outlined,
+              value: 'business_owner',
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildRoleOption(
-                title: 'Business Owner',
-                subtitle: 'List & manage businesses',
-                icon: Icons.business_outlined,
-                value: 'business_owner',
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildRoleOption({
     required String title,
-    required String subtitle,
     required IconData icon,
     required String value,
   }) {
     final isSelected = _selectedRole == value;
     return InkWell(
       onTap: () => setState(() => _selectedRole = value),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : AppTheme.grey50,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? AppTheme.primaryColor : Colors.white,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? AppTheme.primaryColor : AppTheme.grey200,
-            width: isSelected ? 2 : 1,
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 24,
-              color: isSelected ? AppTheme.primaryColor : AppTheme.grey600,
+              size: 22,
+              color: isSelected ? Colors.white : AppTheme.grey600,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? AppTheme.primaryColor : AppTheme.grey900,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected ? AppTheme.primaryColor : AppTheme.grey600,
+                color: isSelected ? Colors.white : AppTheme.grey900,
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
