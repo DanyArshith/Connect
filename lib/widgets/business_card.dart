@@ -84,10 +84,10 @@ class BusinessCard extends StatelessWidget {
                                 child: Padding(
                                   padding: const EdgeInsets.all(4),
                                   child: Icon(
-                                    isFavorite
+                                    isFavorite == true
                                         ? Icons.favorite
                                         : Icons.favorite_border,
-                                    color: isFavorite
+                                    color: isFavorite == true
                                         ? Colors.red
                                         : AppTheme.grey400,
                                     size: 22,
