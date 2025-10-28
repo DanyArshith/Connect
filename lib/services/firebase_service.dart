@@ -165,6 +165,47 @@ class FirebaseService {
         });
   }
 
+  // Business methods - Get stream with filters for real-time updates
+  static Stream<List<Business>> businessesStreamFiltered({
+    String? category,
+    String? location,
+    String? searchQuery,
+  }) {
+    Query<Map<String, dynamic>> query = _firestore
+        .collection('businesses')
+        .where('isActive', isEqualTo: true);
+
+    if (category != null && category.isNotEmpty) {
+      query = query.where('category', isEqualTo: category);
+    }
+
+    if (location != null && location.isNotEmpty) {
+      query = query.where('location', isEqualTo: location);
+    }
+
+    return query.snapshots().map((snapshot) {
+      List<Business> businesses = snapshot.docs
+          .map((doc) => Business.fromMap(doc.data(), doc.id))
+          .toList();
+
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        final lower = searchQuery.toLowerCase();
+        businesses = businesses.where((b) {
+          return b.name.toLowerCase().contains(lower) ||
+              b.description.toLowerCase().contains(lower) ||
+              b.category.toLowerCase().contains(lower);
+        }).toList();
+      }
+
+      businesses.sort((a, b) {
+        if (a.rating != b.rating) return b.rating.compareTo(a.rating);
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+      return businesses;
+    });
+  }
+
   // Business methods
   static Future<List<Business>> getBusinesses({
     String? category,
@@ -234,6 +275,17 @@ class FirebaseService {
     } catch (e) {
       throw Exception('Failed to get business: $e');
     }
+  }
+
+  // Business by id stream (real-time)
+  static Stream<Business?> businessByIdStream(String businessId) {
+    return _firestore
+        .collection('businesses')
+        .doc(businessId)
+        .snapshots()
+        .map(
+          (doc) => doc.exists ? Business.fromMap(doc.data()!, doc.id) : null,
+        );
   }
 
   static Future<String> addBusiness(Business business) async {
@@ -310,6 +362,20 @@ class FirebaseService {
     } catch (e) {
       throw Exception('Failed to get user businesses: $e');
     }
+  }
+
+  // User businesses stream (real-time)
+  static Stream<List<Business>> userBusinessesStream(String userId) {
+    return _firestore
+        .collection('businesses')
+        .where('ownerId', isEqualTo: userId)
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Business.fromMap(doc.data(), doc.id))
+              .toList(),
+        );
   }
 
   static Future<List<Business>> getFavoriteBusinesses(
@@ -414,6 +480,15 @@ class FirebaseService {
     } catch (e) {
       throw Exception('Failed to check if business is favorite: $e');
     }
+  }
+
+  // User data stream (real-time)
+  static Stream<User?> userDataStream(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .map((doc) => doc.exists ? User.fromMap(doc.data()!, doc.id) : null);
   }
 
   // Storage methods

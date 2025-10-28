@@ -35,13 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (authProvider.isAuthenticated && authProvider.user != null) {
       userProvider.loadUserData(authProvider.user!.uid);
-
-      // Load user businesses after user data is loaded
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (userProvider.currentUser != null) {
-          businessProvider.loadUserBusinesses(userProvider.currentUser!.id);
-        }
-      });
+      // Subscribe to user's businesses in real-time
+      businessProvider.loadUserBusinesses(authProvider.user!.uid);
     }
   }
 

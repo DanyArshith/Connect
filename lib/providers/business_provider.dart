@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import '../models/business_model.dart';
 import '../services/firebase_service.dart';
@@ -135,6 +136,9 @@ class BusinessProvider extends ChangeNotifier {
   String _selectedCategory = '';
   String _selectedLocation = '';
   String _searchQuery = '';
+  StreamSubscription<List<Business>>? _businessesSubscription;
+  StreamSubscription<List<Business>>? _favoritesSubscription;
+  StreamSubscription<List<Business>>? _userBusinessesSubscription;
 
   List<Business> get businesses => _businesses;
   List<Business> get favoriteBusinesses => _favoriteBusinesses;
@@ -146,22 +150,28 @@ class BusinessProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
 
   Future<void> loadBusinesses() async {
-    try {
-      _setLoading(true);
-      _clearError();
+    _setLoading(true);
+    _clearError();
 
-      _businesses = await FirebaseService.getBusinesses(
-        category: _selectedCategory.isEmpty ? null : _selectedCategory,
-        location: _selectedLocation.isEmpty ? null : _selectedLocation,
-        searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
-      );
+    // Cancel previous listener if any
+    await _businessesSubscription?.cancel();
 
-      notifyListeners();
-    } catch (e) {
-      _setError(e.toString());
-    } finally {
-      _setLoading(false);
-    }
+    _businessesSubscription =
+        FirebaseService.businessesStreamFiltered(
+          category: _selectedCategory.isEmpty ? null : _selectedCategory,
+          location: _selectedLocation.isEmpty ? null : _selectedLocation,
+          searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
+        ).listen(
+          (data) {
+            _businesses = data;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            _isLoading = false;
+            _setError(e.toString());
+          },
+        );
   }
 
   Future<void> loadFavoriteBusinesses(List<String> favoriteIds) async {
@@ -181,31 +191,40 @@ class BusinessProvider extends ChangeNotifier {
   }
 
   Future<void> loadUserFavorites(String userId) async {
-    try {
-      _setLoading(true);
-      _clearError();
+    _setLoading(true);
+    _clearError();
 
-      _favoriteBusinesses = await FirebaseService.getUserFavorites(userId);
-      notifyListeners();
-    } catch (e) {
-      _setError(e.toString());
-    } finally {
-      _setLoading(false);
-    }
+    await _favoritesSubscription?.cancel();
+    _favoritesSubscription = FirebaseService.userFavoritesStream(userId).listen(
+      (data) {
+        _favoriteBusinesses = data;
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (e) {
+        _isLoading = false;
+        _setError(e.toString());
+      },
+    );
   }
 
   Future<void> loadUserBusinesses(String userId) async {
-    try {
-      _setLoading(true);
-      _clearError();
+    _setLoading(true);
+    _clearError();
 
-      _userBusinesses = await FirebaseService.getUserBusinesses(userId);
-      notifyListeners();
-    } catch (e) {
-      _setError(e.toString());
-    } finally {
-      _setLoading(false);
-    }
+    await _userBusinessesSubscription?.cancel();
+    _userBusinessesSubscription = FirebaseService.userBusinessesStream(userId)
+        .listen(
+          (data) {
+            _userBusinesses = data;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (e) {
+            _isLoading = false;
+            _setError(e.toString());
+          },
+        );
   }
 
   Future<Business?> getBusinessById(String businessId) async {
@@ -224,7 +243,6 @@ class BusinessProvider extends ChangeNotifier {
 
       final businessId = await FirebaseService.addBusiness(business);
       if (businessId.isNotEmpty) {
-        await loadBusinesses();
         return true;
       }
       return false;
@@ -242,7 +260,6 @@ class BusinessProvider extends ChangeNotifier {
       _clearError();
 
       await FirebaseService.updateBusiness(businessId, business);
-      await loadBusinesses();
       return true;
     } catch (e) {
       _setError(e.toString());
@@ -258,7 +275,6 @@ class BusinessProvider extends ChangeNotifier {
       _clearError();
 
       await FirebaseService.deleteBusiness(businessId);
-      await loadBusinesses();
       return true;
     } catch (e) {
       _setError(e.toString());
@@ -287,8 +303,6 @@ class BusinessProvider extends ChangeNotifier {
         rating,
       );
 
-      // Reload businesses to get updated ratings
-      await loadBusinesses();
       return true;
     } catch (e) {
       _setError(e.toString());
@@ -352,6 +366,14 @@ class BusinessProvider extends ChangeNotifier {
 
   void clearError() {
     _clearError();
+  }
+
+  @override
+  void dispose() {
+    _businessesSubscription?.cancel();
+    _favoritesSubscription?.cancel();
+    _userBusinessesSubscription?.cancel();
+    super.dispose();
   }
 }
 
